@@ -1,5 +1,6 @@
 package com.client.util;
 
+import com.client.lyrics.Sentence;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -10,6 +11,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.gson.*;
 
 import java.io.IOException;
+import java.util.List;
 
 public class Json {
 
@@ -48,6 +50,12 @@ public class Json {
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    public static List<Sentence> getSentences(Object value){
+        return mapper.convertValue(
+                value,
+                new TypeReference<List<Sentence>>() { });
     }
 
 }

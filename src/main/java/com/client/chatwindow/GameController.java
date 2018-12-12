@@ -34,6 +34,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +43,9 @@ import java.io.PrintStream;
 import java.lang.reflect.Array;
 import java.net.Socket;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.ResourceBundle;
 
 
@@ -58,7 +61,9 @@ public class GameController implements Initializable {
     @FXML BorderPane borderPane;
     @FXML BorderPane borderTopPane;
     private String gameStatus = "";
-    private List<Sentence> song;
+    private ArrayList<Sentence> song;
+    private int current = 0;
+    private int points = 0;
 
     private double xOffset;
     private double yOffset;
@@ -78,7 +83,11 @@ public class GameController implements Initializable {
         String msg = messageBox.getText();
 
         if (!messageBox.getText().isEmpty()) {
-            this.sender.sendMessage(msg);
+            if(song.get(current).testAnswer(msg)){
+                this.points++;
+            }
+            this.current++;
+            playSong();
             messageBox.clear();
         }
     }
@@ -96,7 +105,7 @@ public class GameController implements Initializable {
     }
 
     public void setSong(List<Sentence> song){
-        this.song = song;
+        this.song = new ArrayList<>(song);
     }
 
     public void addToChat(String msg){
@@ -138,43 +147,6 @@ public class GameController implements Initializable {
         }
     }
 
-    public void setOnlineLabel(String usercount) {
-        Platform.runLater(() -> onlineCountLabel.setText(usercount));
-    }
-
-    public void setUserList(Message msg) {
-        logger.info("setUserList() method Enter");
-        Platform.runLater(() -> {
-            ObservableList<User> users = FXCollections.observableList(msg.getUsers());
-            userList.setItems(users);
-            userList.setCellFactory(new CellRenderer());
-            setOnlineLabel(String.valueOf(msg.getUserlist().size()));
-        });
-        logger.info("setUserList() method Exit");
-    }
-
-    /* Displays Notification when a user joins */
-    public void newUserNotification(Message msg) {
-        Platform.runLater(() -> {
-//            Image profileImg = new Image(getClass().getClassLoader().getResource("images/" + msg.getPicture().toLowerCase() +".png").toString(),50,50,false,false);
-            TrayNotification tray = new TrayNotification();
-            tray.setTitle("A new user has joined!");
-            tray.setMessage(msg.getName() + " has joined the JavaFX Chatroom!");
-            tray.setRectangleFill(Paint.valueOf("#2C3E50"));
-            tray.setAnimationType(AnimationType.POPUP);
-//            tray.setImage(profileImg);
-            tray.showAndDismiss(Duration.seconds(5));
-            try {
-                Media hit = new Media(getClass().getClassLoader().getResource("sounds/notification.wav").toString());
-                MediaPlayer mediaPlayer = new MediaPlayer(hit);
-                mediaPlayer.play();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-        });
-    }
-
     public void sendMethod(KeyEvent event) throws IOException {
         if (event.getCode() == KeyCode.ENTER) {
             sendButtonAction();
@@ -185,31 +157,6 @@ public class GameController implements Initializable {
     public void closeApplication() {
         Platform.exit();
         System.exit(0);
-    }
-
-    /* Method to display server messages */
-    public synchronized void addAsServer(Message msg) {
-        Task<HBox> task = new Task<HBox>() {
-            @Override
-            public HBox call() throws Exception {
-                BubbledLabel bl6 = new BubbledLabel();
-                bl6.setText(msg.getMsg());
-                bl6.setBackground(new Background(new BackgroundFill(Color.ALICEBLUE,
-                        null, null)));
-                HBox x = new HBox();
-                bl6.setBubbleSpec(BubbleSpec.FACE_BOTTOM);
-                x.setAlignment(Pos.CENTER);
-                x.getChildren().addAll(bl6);
-                return x;
-            }
-        };
-        task.setOnSucceeded(event -> {
-            chatPane.getItems().add(task.getValue());
-        });
-
-        Thread t = new Thread(task);
-        t.setDaemon(true);
-        t.start();
     }
 
     @Override
@@ -270,6 +217,10 @@ public class GameController implements Initializable {
         }
     }
 
+    public void endGame(){
+        messageList.getItems().add(String.format("Total Points: %s", points));
+    }
+
     public void logoutScene() {
         Platform.runLater(() -> {
             FXMLLoader fmxlLoader = new FXMLLoader(getClass()
@@ -291,8 +242,17 @@ public class GameController implements Initializable {
     }
 
     public void playSong() {
-       song.forEach(sentence -> {
-           messageList.getItems().add(sentence.getContent());
+        Platform.runLater(()->{
+                if(current > song.size()) { endGame();}
+                Sentence sentence = song.get(this.current);
+                sentence.setMissingWord();
+                boolean isCensored = StringUtils.isBlank(sentence.getCensoredString());
+                String line = isCensored ? sentence.getContent()  : sentence.getCensoredString();
+                messageList.getItems().add(line);
+                if(!isCensored){
+                    current++;
+                    playSong();
+                }
        });
     }
 }

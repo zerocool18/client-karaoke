@@ -4,11 +4,10 @@ import com.client.chatwindow.GameController;
 import com.client.lyrics.Lyric;
 import com.client.lyrics.Sentence;
 import com.client.lyrics.Song;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Scanner;
+import java.util.*;
 
 public class ReceivedMessagesHandler implements Runnable {
 
@@ -42,11 +41,9 @@ public class ReceivedMessagesHandler implements Runnable {
                 controller.disableMessageBox();
                 break;
             case "PLAYLIST":
-                HashMap map = Json.fromJson(msg.getPayload(), HashMap.class);
+                List<Sentence> map = Json.getSentences(Json.fromJson(msg.getPayload(), ArrayList.class));
 
-                ArrayList song = Json.fromJson(map.get("payload").toString(), ArrayList.class);
-                System.out.println(map.toString());
-                controller.setSong(song);
+                controller.setSong(map);
                 controller.playSong();
                 break;
         }

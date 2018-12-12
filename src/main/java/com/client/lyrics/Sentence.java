@@ -19,6 +19,10 @@ public class Sentence implements Serializable {
 
     // private final static long DISAPPEAR_TIME = 1000L;//
 
+
+    public Sentence() {
+    }
+
     public Sentence(long fromTime){
         this("",fromTime,-1);
     }
