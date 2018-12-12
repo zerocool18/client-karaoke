@@ -28,7 +28,7 @@ public class ReceivedMessagesHandler implements Runnable {
             String msg = s.nextLine();
             System.out.println(msg);
             processMessage(Json.fromJson(msg,Messenger.class));
-            controller.addToChat(msg);
+           // controller.addToChat(msg);
         }
         s.close();
     }
@@ -37,8 +37,10 @@ public class ReceivedMessagesHandler implements Runnable {
     public void processMessage(Messenger msg){
         switch (msg.getStatus()){
             case "WAITING_FOR_PLAYERS":
+                case "PLAYER-JOIN":
                 controller.setGameStatus("WAITING_FOR_PLAYERS");
-                controller.disableMessageBox();
+                //controller.disableMessageBox();
+                controller.addToStatus(msg.getMessage());
                 break;
             case "PLAYLIST":
                 List<Sentence> map = Json.getSentences(Json.fromJson(msg.getPayload(), ArrayList.class));

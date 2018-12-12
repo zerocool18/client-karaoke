@@ -99,7 +99,6 @@ public class LoginKaraokeController implements Initializable {
             stage.centerOnScreen();
 
             con.setUsernameLabel(usernameTextfield.getText());
-            con.setImageLabel(selectedColor.getText());
             con.setPaneColor(colorPicker.getValue().toString());
         });
     }
