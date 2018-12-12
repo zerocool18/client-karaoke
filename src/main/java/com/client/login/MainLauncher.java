@@ -16,10 +16,12 @@ public class MainLauncher extends Application {
     @Override
     public void start(Stage primaryStage) throws Exception {
         primaryStageObj = primaryStage;
-        Parent root = FXMLLoader.load(getClass().getClassLoader().getResource("views/LoginKaraoke.fxml"));
+        Parent root = FXMLLoader.load(getClass()
+                .getClassLoader().getResource("views/LoginKaraoke.fxml"));
         primaryStage.initStyle(StageStyle.UNDECORATED);
         primaryStage.setTitle("Socket Karaoke");
         primaryStage.getIcons().add(new Image(getClass().getClassLoader().getResource("images/plug.png").toString()));
+
         Scene mainScene = new Scene(root, 350, 420);
         mainScene.setRoot(root);
         primaryStage.setResizable(false);
@@ -27,7 +29,6 @@ public class MainLauncher extends Application {
         primaryStage.show();
         primaryStage.setOnCloseRequest(e -> Platform.exit());
     }
-
 
     public static void main(String[] args) {
         launch(args);

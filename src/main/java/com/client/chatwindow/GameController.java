@@ -1,20 +1,17 @@
 package com.client.chatwindow;
 
 import com.client.login.MainLauncher;
-import com.client.util.VoicePlayback;
-import com.client.util.VoiceRecorder;
-import com.client.util.VoiceUtil;
+import com.client.lyrics.Sentence;
+import com.client.lyrics.Song;
+import com.client.util.MessageSender;
+import com.client.util.Messenger;
 import com.messages.Message;
-import com.messages.MessageType;
-import com.messages.Status;
 import com.messages.User;
 import com.messages.bubble.BubbleSpec;
 import com.messages.bubble.BubbledLabel;
 import com.traynotifications.animations.AnimationType;
 import com.traynotifications.notification.TrayNotification;
 import javafx.application.Platform;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
@@ -41,127 +38,76 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.PrintStream;
+import java.lang.reflect.Array;
+import java.net.Socket;
 import java.net.URL;
+import java.util.List;
 import java.util.ResourceBundle;
 
 
 public class GameController implements Initializable {
 
     @FXML private TextArea messageBox;
+    @FXML private ListView messageList;
     @FXML private Label usernameLabel;
     @FXML private Label onlineCountLabel;
-    @FXML private ListView userList;
+    @FXML private ListView<User> userList;
     @FXML private ImageView userImageView;
-    @FXML ListView chatPane;
+    @FXML ListView<HBox> chatPane;
     @FXML BorderPane borderPane;
     @FXML BorderPane borderTopPane;
-    @FXML ImageView microphoneImageView;
-
-    Image microphoneActiveImage = new Image(getClass().getClassLoader().getResource("images/microphone-active.png").toString());
-    Image microphoneInactiveImage = new Image(getClass().getClassLoader().getResource("images/microphone.png").toString());
+    private String gameStatus = "";
+    private List<Sentence> song;
 
     private double xOffset;
     private double yOffset;
+    private MessageSender sender;
     Logger logger = LoggerFactory.getLogger(GameController.class);
 
 
+    public void setSocket(Socket socket){
+        try {
+            this.sender = new MessageSender(new PrintStream(socket.getOutputStream()));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
     public void sendButtonAction() throws IOException {
         String msg = messageBox.getText();
+
         if (!messageBox.getText().isEmpty()) {
-            Listener.send(msg);
+            this.sender.sendMessage(msg);
             messageBox.clear();
         }
     }
 
-    public void recordVoiceMessage() throws IOException {
-        if (VoiceUtil.isRecording()) {
-            Platform.runLater(() -> {
-                microphoneImageView.setImage(microphoneInactiveImage);
-                    }
-            );
-            VoiceUtil.setRecording(false);
-        } else {
-            Platform.runLater(() -> {
-                microphoneImageView.setImage(microphoneActiveImage);
-
-                    }
-            );
-            VoiceRecorder.captureAudio();
-        }
+    public void setGameStatus(String gameStatus){
+        this.gameStatus = gameStatus;
     }
 
+    public void disableMessageBox(){
+        this.messageBox.setDisable(true);
+    }
 
-    public synchronized void addToChat(Message msg) {
-        Task<HBox> othersMessages = new Task<HBox>() {
-            @Override
-            public HBox call() throws Exception {
-                Image image = new Image(getClass().getClassLoader().getResource("images/" + msg.getPicture() + ".png").toString());
-                ImageView profileImage = new ImageView(image);
-                profileImage.setFitHeight(32);
-                profileImage.setFitWidth(32);
-                BubbledLabel bl6 = new BubbledLabel();
-                if (msg.getType() == MessageType.VOICE){
-                    ImageView imageview = new ImageView(new Image(getClass().getClassLoader().getResource("images/sound.png").toString()));
-                    bl6.setGraphic(imageview);
-                    bl6.setText("Sent a voice message!");
-                    VoicePlayback.playAudio(msg.getVoiceMsg());
-                }else {
-                    bl6.setText(msg.getName() + ": " + msg.getMsg());
-                }
-                bl6.setBackground(new Background(new BackgroundFill(Color.WHITE,null, null)));
-                HBox x = new HBox();
-                bl6.setBubbleSpec(BubbleSpec.FACE_LEFT_CENTER);
-                x.getChildren().addAll(profileImage, bl6);
-                logger.debug("ONLINE USERS: " + Integer.toString(msg.getUserlist().size()));
-                setOnlineLabel(Integer.toString(msg.getOnlineCount()));
-                return x;
-            }
-        };
+    public void enableMessageBox(){
+        this.messageBox.setDisable(false);
+    }
 
-        othersMessages.setOnSucceeded(event -> {
-            chatPane.getItems().add(othersMessages.getValue());
+    public void setSong(List<Sentence> song){
+        this.song = song;
+    }
+
+    public void addToChat(String msg){
+        Platform.runLater(()->{
+            Label input = new Label();
+            input.setText(msg);
+            this.messageList.getItems().add(input);
         });
 
-        Task<HBox> yourMessages = new Task<HBox>() {
-            @Override
-            public HBox call() throws Exception {
-                Image image = userImageView.getImage();
-                ImageView profileImage = new ImageView(image);
-                profileImage.setFitHeight(32);
-                profileImage.setFitWidth(32);
-
-                BubbledLabel bl6 = new BubbledLabel();
-                if (msg.getType() == MessageType.VOICE){
-                    bl6.setGraphic(new ImageView(new Image(getClass().getClassLoader().getResource("images/sound.png").toString())));
-                    bl6.setText("Sent a voice message!");
-                    VoicePlayback.playAudio(msg.getVoiceMsg());
-                }else {
-                    bl6.setText(msg.getMsg());
-                }
-                bl6.setBackground(new Background(new BackgroundFill(Color.LIGHTGREEN,
-                        null, null)));
-                HBox x = new HBox();
-                x.setMaxWidth(chatPane.getWidth() - 20);
-                x.setAlignment(Pos.TOP_RIGHT);
-                bl6.setBubbleSpec(BubbleSpec.FACE_RIGHT_CENTER);
-                x.getChildren().addAll(bl6, profileImage);
-
-                setOnlineLabel(Integer.toString(msg.getOnlineCount()));
-                return x;
-            }
-        };
-        yourMessages.setOnSucceeded(event -> chatPane.getItems().add(yourMessages.getValue()));
-
-        if (msg.getName().equals(usernameLabel.getText())) {
-            Thread t2 = new Thread(yourMessages);
-            t2.setDaemon(true);
-            t2.start();
-        } else {
-            Thread t = new Thread(othersMessages);
-            t.setDaemon(true);
-            t.start();
-        }
     }
+
     public void setUsernameLabel(String username) {
         this.usernameLabel.setText(username);
     }
@@ -171,6 +117,10 @@ public class GameController implements Initializable {
     }
 
     public void setPaneColor(String color){
+        setColor(color, borderTopPane);
+    }
+
+    public static void setColor(String color, BorderPane borderTopPane) {
         switch (color){
             case "Black":
                 borderTopPane.setStyle("-fx-background-color: #000000;");
@@ -304,7 +254,12 @@ public class GameController implements Initializable {
     public void setImageLabel(String selectedPicture) {
         switch (selectedPicture) {
             case "Dominic":
-                this.userImageView.setImage(new Image(getClass().getClassLoader().getResource("images/Dominic.png").toString()));
+                this
+                        .userImageView
+                        .setImage(new Image(getClass()
+                                .getClassLoader()
+                                .getResource("images/Dominic.png")
+                                .toString()));
                 break;
             case "Sarah":
                 this.userImageView.setImage(new Image(getClass().getClassLoader().getResource("images/sarah.png").toString()));
@@ -317,7 +272,8 @@ public class GameController implements Initializable {
 
     public void logoutScene() {
         Platform.runLater(() -> {
-            FXMLLoader fmxlLoader = new FXMLLoader(getClass().getResource("/views/LoginView.fxml"));
+            FXMLLoader fmxlLoader = new FXMLLoader(getClass()
+                    .getResource("/views/LoginView.fxml"));
             Parent window = null;
             try {
                 window = (Pane) fmxlLoader.load();
@@ -332,5 +288,11 @@ public class GameController implements Initializable {
             stage.setScene(scene);
             stage.centerOnScreen();
         });
+    }
+
+    public void playSong() {
+       song.forEach(sentence -> {
+           messageList.getItems().add(sentence.getContent());
+       });
     }
 }

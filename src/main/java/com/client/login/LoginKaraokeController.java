@@ -1,8 +1,7 @@
 package com.client.login;
 
 import com.client.chatwindow.GameController;
-import com.client.chatwindow.Listener;
-import com.client.util.ResizeHelper;
+import com.client.util.*;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
@@ -28,9 +27,10 @@ import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 
 import java.io.IOException;
+import java.io.PrintStream;
+import java.net.Socket;
 import java.net.URL;
-import java.util.Random;
-import java.util.ResourceBundle;
+import java.util.*;
 
 /**
  *  Created by Dominic on 12-Nov-15.
@@ -46,7 +46,9 @@ public class LoginKaraokeController implements Initializable {
     private double xOffset;
     private double yOffset;
     private Scene scene;
-
+    private String username;
+    private String color;
+    Socket client;
     private static LoginKaraokeController instance;
 
     public LoginKaraokeController() {
@@ -59,15 +61,23 @@ public class LoginKaraokeController implements Initializable {
     public void loginButtonAction() throws IOException {
         String hostname = hostnameTextfield.getText();
         int port = Integer.parseInt(portTextfield.getText());
-        String username = usernameTextfield.getText();
-        String color = selectedColor.getText();
+        username = usernameTextfield.getText();
+        color = selectedColor.getText();
 
-        FXMLLoader fmxlLoader = new FXMLLoader(getClass().getResource("/views/GameKaraokeView.fxml"));
+        FXMLLoader fmxlLoader = new FXMLLoader(getClass()
+                .getResource("/views/GameKaraokeView.fxml"));
         Parent window = (Pane) fmxlLoader.load();
-        con = fmxlLoader.<GameController>getController();
-        Listener listener = new Listener(hostname, port, username, color, con);
-        Thread x = new Thread(listener);
-        x.start();
+        con = fmxlLoader.getController();
+        client = new Socket(hostname, port);
+
+
+        new Thread(new ReceivedMessagesHandler(client.getInputStream(), con)).start();
+        con.setSocket(client);
+       sendPlayerInfo();
+
+
+
+        showScene();
         this.scene = new Scene(window);
     }
 
@@ -87,6 +97,7 @@ public class LoginKaraokeController implements Initializable {
             stage.setMinHeight(300);
             ResizeHelper.addResizeListener(stage);
             stage.centerOnScreen();
+
             con.setUsernameLabel(usernameTextfield.getText());
             con.setImageLabel(selectedColor.getText());
             con.setPaneColor(colorPicker.getValue().toString());
@@ -119,21 +130,7 @@ public class LoginKaraokeController implements Initializable {
         colorPicker.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<String>() {
             @Override
             public void changed(ObservableValue<? extends String> selected, String color, String colorSelected) {
-                switch (colorSelected){
-                    case "Black":
-                        borderPane.setStyle("-fx-background-color: #000000;");
-                        break;
-                    case "Green":
-                        borderPane.setStyle("-fx-background-color: #15ff00;");
-                        break;
-                    case "Pink":
-                        borderPane.setStyle("-fx-background-color: #f702b1;");
-                        break;
-
-                        default:
-                            borderPane.setStyle("-fx-background-color: #29efff;");
-                            break;
-                }
+                GameController.setColor(colorSelected, borderPane);
             }
         });
         int numberOfSquares = 30;
@@ -142,7 +139,6 @@ public class LoginKaraokeController implements Initializable {
             numberOfSquares--;
         }
     }
-
 
     /* This method is used to generate the animation on the login window, It will generate random ints to determine
      * the size, speed, starting points and direction of each square.
@@ -229,5 +225,18 @@ public class LoginKaraokeController implements Initializable {
             alert.showAndWait();
         });
 
+    }
+
+    public void sendPlayerInfo() throws IOException {
+        Map<String, String> info = new HashMap<>();
+        info.put("username", this.username);
+        info.put("color", this.color);
+        Messenger messenger = new Messenger();
+        messenger.setMessage("Creating New Player");
+        messenger.setStatus("CREATING_PLAYER");
+        messenger.setPayload(Json.toJson(info));
+
+        MessageSender sender = new MessageSender(new PrintStream(client.getOutputStream()));
+        sender.sendMessage(Json.toJson(messenger));
     }
 }
