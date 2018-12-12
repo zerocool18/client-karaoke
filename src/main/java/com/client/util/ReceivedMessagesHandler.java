@@ -42,10 +42,11 @@ public class ReceivedMessagesHandler implements Runnable {
                 controller.disableMessageBox();
                 break;
             case "PLAYLIST":
-                ArrayList map = Json.fromJson(msg.getPayload(), ArrayList.class);
+                HashMap map = Json.fromJson(msg.getPayload(), HashMap.class);
 
+                ArrayList song = Json.fromJson(map.get("payload").toString(), ArrayList.class);
                 System.out.println(map.toString());
-                controller.setSong(map);
+                controller.setSong(song);
                 controller.playSong();
                 break;
         }
